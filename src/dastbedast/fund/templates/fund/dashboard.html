@@ -1,0 +1,70 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>امروز {{ today }} — مبالغ به تومان.</p>
+
+<div class="module">
+  <h2>دفتر صندوق</h2>
+  <table>
+    <tr><th>نقد</th><th>سرمایه صندوق</th><th>بدهی به وام‌دهندگان</th><th>اعتبار اشخاص</th><th>طلب از وام‌گیرندگان</th></tr>
+    <tr dir="ltr">
+      <td>{{ fmt.cash }}</td><td>{{ fmt.equity }}</td><td>{{ fmt.lender_liabilities }}</td><td>{{ fmt.credit }}</td><td>{{ fmt.receivables }}</td>
+    </tr>
+  </table>
+  {% if ledger_matches %}<p>✔ نقد = سرمایه + بدهی‌ها − طلب‌ها</p>
+  {% else %}<p class="errornote">✘ ناهمخوانی در دفتر؛ تراکنش‌ها را بررسی کنید.</p>{% endif %}
+  {% if buckets.equity < 0 %}<p class="errornote">سرمایه صندوق منفی است: پول وام‌دهندگان در خطر است.</p>{% endif %}
+  <p>پیش‌نویس‌های منتظر تأیید: <a href="{% url 'admin:fund_transaction_changelist' %}?status__exact=draft">{{ drafts }}</a></p>
+</div>
+
+{% if surplus %}
+<div class="module">
+  <h2>هشدار مازاد: امکان بازپرداخت وام‌دهندگان «آخر از همه»</h2>
+  <p>نقد آزاد پس از همه تعهدات دیگر: {{ surplus_available }}</p>
+  <ul>{% for s in surplus_rows %}<li><a href="{% url 'admin:fund_agreement_change' s.pk %}">{{ s.label }}</a> — {{ s.amount }}</li>{% endfor %}</ul>
+  <p>برای هر کدام: جدول بازپرداخت بسازید، یا ادامه دهید، یا تاریخ دور توافق کنید.</p>
+</div>
+{% endif %}
+
+<div class="module">
+  <h2>معوقات</h2>
+  {% if overdue_rows %}
+  <table>
+    <tr><th>شخص</th><th>قرارداد</th><th>اقساط عقب‌افتاده</th><th>مبلغ</th><th>اقدام</th></tr>
+    {% for r in overdue_rows %}
+    <tr><td>{{ r.person }}</td><td><a href="{% url 'admin:fund_agreement_change' r.pk %}">#{{ r.pk }}</a></td>
+      <td>{{ r.count }}</td><td dir="ltr">{{ r.amount }}</td><td>{{ r.action }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p>معوقه‌ای نیست.</p>{% endif %}
+</div>
+
+<div class="module">
+  <h2>پرداختی‌های این ماه به وام‌دهندگان ({{ month }})</h2>
+  {% if payout_list %}
+  <table>
+    <tr><th>شخص</th><th>قرارداد</th><th>مبلغ</th><th>شبا</th></tr>
+    {% for r in payout_list %}
+    <tr><td>{{ r.person }}</td><td><a href="{% url 'admin:fund_agreement_change' r.pk %}">#{{ r.pk }}</a></td>
+      <td dir="ltr">{{ r.amount }}</td><td dir="ltr">{{ r.iban }}</td></tr>
+    {% endfor %}
+    <tr><th colspan="2">جمع</th><th dir="ltr">{{ payouts_total_fmt }}</th><th></th></tr>
+  </table>
+  <p><a class="button" href="{% url 'fund_payout_export' %}">دریافت فایل پرداخت گروهی</a>
+    <small>(قالب موقت؛ پس از انتخاب بانک با قالب آن جایگزین می‌شود)</small></p>
+  {% else %}<p>پرداختی برای این ماه نیست.</p>{% endif %}
+</div>
+
+<div class="module">
+  <h2>پیش‌بینی ماهانه</h2>
+  <p>قابل وام دادن اکنون (پس از حاشیه اطمینان): <strong dir="ltr">{{ free_to_lend }}</strong></p>
+  {% if forecast.shortfall_months %}<p class="errornote">کسری نقد در ماه‌های: {{ shortfall }} — ابزار تعویق را در صفحه قرارداد وام‌دهندگان ببینید.</p>{% endif %}
+  <table>
+    <tr><th>ماه</th><th>ورودی مورد انتظار</th><th>خروجی مورد انتظار</th><th>نقد پایان ماه</th></tr>
+    {% for r in forecast_rows %}
+    <tr><td>{{ r.month }}</td><td dir="ltr">{{ r.in }}</td><td dir="ltr">{{ r.out }}</td><td dir="ltr">{{ r.cash }}</td></tr>
+    {% endfor %}
+  </table>
+  <p>معوقات قابل وصول که در ماه جاری حساب شده: <span dir="ltr">{{ overdue_in }}</span> —
+     اقساط وام‌های «در بررسی» که حساب نشده: <span dir="ltr">{{ at_risk }}</span></p>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<div class="module" style="padding:8px 12px">
+  <a href="{% url 'fund_dashboard' %}"><strong>وضعیت صندوق، پیش‌بینی و هشدارها ←</strong></a>
+</div>
+{{ block.super }}
+{% endblock %}

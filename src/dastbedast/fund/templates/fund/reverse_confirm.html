@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>تراکنش‌های زیر با یک تراکنش برگشتی خنثی می‌شوند. خود تراکنش‌ها تغییر نمی‌کنند.</p>
+<ul>{% for tx in queryset %}<li>{{ tx }}</li>{% endfor %}</ul>
+<form method="post">
+  {% csrf_token %}
+  {% for tx in queryset %}<input type="hidden" name="{{ action_checkbox_name }}" value="{{ tx.pk }}">{% endfor %}
+  <input type="hidden" name="action" value="{{ action }}">
+  <fieldset class="module aligned">{{ form.as_div }}</fieldset>
+  <div class="submit-row"><input type="submit" class="default" value="برگشت بزن"></div>
+</form>
+{% endblock %}

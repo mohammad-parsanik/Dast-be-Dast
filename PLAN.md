@@ -250,13 +250,14 @@ For each Jalali month, from the current month through the next 12:
 ```
 Person(name, phone, bale_user_id, referred_by→Person?, referrer_text, referrer_approved, muted, notes)
 BankAccount(person, iban, holder_name)
-FundAccount(bank, masked_number, label)                # our accounts
+FundAccount(bank, account_hint, label)                 # our accounts; opening balance = an `opening` transaction
 Agreement(person, kind, principal, status, subordinated, opened_on, notes)
 ScheduleVersion(agreement, version, reason, created_by, active)
 Installment(schedule_version, seq, due_date, amount, direction)   # status derived from allocations
 Transaction(fund_account, direction, amount, occurred_at, balance_after, raw_sms,
-            kind[installment_in|deposit|donation|pledge|disbursement|payout|fee|owner_cover|other],
-            person?, status[draft|confirmed], dedupe_hash)
+            kind[opening|deposit|donation|pledge|owner_cover|installment|other_in|
+                 disbursement|payout|fee|other_out],
+            person?, agreement?, status[draft|confirmed], dedupe_hash, reverses?)
 Allocation(transaction, agreement, amount)
 Adjustment(kind[write_off|to_donation], agreement, amount, reason, by)
 LoanRequest(person, requested_amount, purpose, description, repayment_choice, status,
@@ -277,19 +278,25 @@ which one has the most convenient bulk-transfer upload.
 
 ## 8. Build phases
 
-1. **Scaffold:** Django project, settings, Docker Compose, ruff/mypy/pytest, CI.
-2. **Domain core:** Jalali month math, schedule templates, allocation (partial, over-, multi-loan FIFO),
+Status: ✅ done · 🟡 partly done · ⬜ not started
+
+1. ✅ **Scaffold:** Django project, settings, Docker Compose, ruff/mypy/pytest, CI.
+2. ✅ **Domain core:** Jalali month math, schedule templates, allocation (partial, over-, multi-loan FIFO),
    schedule versioning, ledger buckets, and the invariant. Property tests for rounding and allocation.
-3. **Models, admin and roles:** superuser/operator groups, history, 2FA. No import: the fund starts fresh
+3. ✅ **Models, admin and roles:** superuser/operator groups, history, 2FA. No import: the fund starts fresh
    (last year's accounts are closed); each fund account gets an opening balance recorded as equity.
-4. **SMS parsers and the transaction entry flows** in the web panel (§5.2, §5.3).
-5. **Forecast and dashboard:** monthly report, free-to-lend, and the shortfall, surplus, and overdue alerts,
+4. 🟡 **SMS parsers and the transaction entry flows** in the web panel (§5.2, §5.3).
+5. 🟡 **Forecast and dashboard:** monthly report, free-to-lend, and the shortfall, surplus, and overdue alerts,
    plus the deferral tool.
-6. **Bale bot:** borrower application, status updates, and admin flows (the three buttons, approval
+6. ⬜ **Bale bot:** borrower application, status updates, and admin flows (the three buttons, approval
    actions, daily digest).
-7. **Reminders:** bot plus Safir, templates, logging.
-8. **Bulk-transfer export** in the payout bank's format (Stage A).
-9. **Bale wallet invoices** (Stage B), once §7 is verified.
+7. ⬜ **Reminders:** bot plus Safir, templates, logging.
+8. 🟡 **Bulk-transfer export** in the payout bank's format (Stage A).
+9. ⬜ **Bale wallet invoices** (Stage B), once §7 is verified.
+
+Still missing from the partly-done phases: recording outgoing payments by ticking rows of the payout list
+(4), actual in/out per past month in the report and a what-if preview in the deferral tool (5), and the
+payout bank's real file format (8; a placeholder CSV is exported until then).
 
 ## 9. Still open
 
