@@ -68,8 +68,11 @@ the reason and the admin who made the change.
 
 ### Allocation
 
-- A transaction is allocated to one or more installments. This handles partial payments, several
-  installments paid at once, and overpayments.
+- A transaction is allocated to one or more **agreements** (`Allocation(transaction, agreement, amount)`).
+  Installment status is derived: an agreement's allocated total covers its active installments in due-date
+  order, so an installment is *paid*, *partly paid* or *unpaid*. Renegotiation therefore never has to move
+  allocations: the new version keeps the covered part of the schedule and re-plans only the rest.
+- This handles partial payments, several installments paid at once, and overpayments.
 - **A borrower with several loans:** incoming money is applied to the person's **oldest unpaid
   installment across all their loans** (FIFO). An admin can override the allocation.
 - Overpayment beyond everything due is held as credit on the person, not silently turned into a donation.
@@ -90,14 +93,18 @@ Their contributions are donations (equity). Pledges are tracked as expected agai
 get reminders like borrowers do. They can be converted to repayable per §3.
 
 ### 4.3 Subordinated ("pay me last") lenders
-They have no dates. A **surplus alert** fires when:
+They have no dates. A **surplus alert** fires only when the fund can repay them **from the cash it holds today**. Money
+borrowers still owe does not count: it will eventually cover every lender, so it says nothing about
+whether we can pay now.
 
 ```
-cash + collectible receivables − all remaining regular (non-subordinated) lender payouts  ≥  subordinated balance
+available = cash − approved-but-not-yet-disbursed loans − all remaining regular (non-subordinated) lender payouts
+alert when available ≥ the balance of the first subordinated lender in line
 ```
 
-- *collectible receivables* excludes installments of loans under review (§4.4).
-- The alert lists which subordinated lenders fit. The admin then chooses one of:
+- Subordinated lenders are considered in the order they deposited. The alert lists every lender, in that
+  order, whose balance fits in `available` cumulatively; it stops at the first one who does not fit.
+- The admin then chooses one of:
   - (a) repay them (a schedule is generated),
   - (b) keep lending and snooze the alert,
   - (c) convert them to a `single(date)` schedule at an agreed far-off date.
@@ -108,7 +115,7 @@ cash + collectible receivables − all remaining regular (non-subordinated) lend
 | due | installment date reached | reminder to borrower |
 | **follow-up** | 1 missed installment | admin task: message or call |
 | **review** | ≥ 2 missed installments | flagged on the dashboard; loan excluded from "collectible" in forecasts |
-| **written off** | manual admin decision with a reason (superuser only) | remaining principal moves from receivables to a loss against equity |
+| **written off** | manual admin decision with a reason | remaining principal moves from receivables to a loss against equity |
 
 ### 4.5 Referrers
 The referrer is used only to decide who gets a loan. The borrower types the referrer's name as free text.
@@ -123,9 +130,11 @@ liabilities to equity, and the remaining schedule is adjusted.
 | Role | Can | Cannot |
 |---|---|---|
 | **superuser** (owner) | everything | — |
-| **operator** | add people and requests, paste and record transactions (as drafts), send reminders, view reports | confirm payouts, approve loans or referrers, write off, edit or delete confirmed transactions, change schedules of active agreements |
+| **operator** | everything in day-to-day work: add people and requests, record **and confirm** transactions, approve referrers and loans, disburse, pay out, renegotiate and defer schedules, write off, convert to donation, reverse a confirmed transaction, send reminders, view reports | the operations that can break the data or the ledger logic: **delete** any record, change **fund accounts** (including opening balances), manage **users and roles**, and edit the **core terms of an active agreement** (person, kind, principal, subordinated flag) |
 
-Every change is kept in an audit history (who, when, before and after).
+- Nobody, superuser included, edits a confirmed transaction in place: a mistake is fixed by a reversal
+  record plus a new, correct transaction. Schedule versions are likewise never edited, only replaced.
+- Every change is kept in an audit history (who, when, before and after).
 
 ## 5. Flows
 
@@ -162,8 +171,8 @@ There are three entry points, each available both in the admin web panel and in 
   loan disbursements and payouts to lenders.
 
 Common to all three:
-- Every recorded transaction starts as a **draft**. It counts once it is **confirmed** (operator drafts,
-  superuser confirms; a superuser can do both in one step).
+- Every recorded transaction starts as a **draft**. It counts once an admin **confirms** it (any admin may
+  confirm, including their own draft, and can record-and-confirm in one step).
 - Duplicate protection: a hash of bank, amount, timestamp and balance.
 
 ### 5.3 Bank SMS parser
@@ -248,7 +257,7 @@ Installment(schedule_version, seq, due_date, amount, direction)   # status deriv
 Transaction(fund_account, direction, amount, occurred_at, balance_after, raw_sms,
             kind[installment_in|deposit|donation|pledge|disbursement|payout|fee|owner_cover|other],
             person?, status[draft|confirmed], dedupe_hash)
-Allocation(transaction, installment, amount)
+Allocation(transaction, agreement, amount)
 Adjustment(kind[write_off|to_donation], agreement, amount, reason, by)
 LoanRequest(person, requested_amount, purpose, description, repayment_choice, status,
             approved_amount, agreement?)
@@ -271,8 +280,8 @@ which one has the most convenient bulk-transfer upload.
 1. **Scaffold:** Django project, settings, Docker Compose, ruff/mypy/pytest, CI.
 2. **Domain core:** Jalali month math, schedule templates, allocation (partial, over-, multi-loan FIFO),
    schedule versioning, ledger buckets, and the invariant. Property tests for rounding and allocation.
-3. **Models, admin and roles:** superuser/operator groups, history, 2FA. Import the current records
-   (from whatever spreadsheet exists today) with a one-off script and reconcile to the bank balance.
+3. **Models, admin and roles:** superuser/operator groups, history, 2FA. No import: the fund starts fresh
+   (last year's accounts are closed); each fund account gets an opening balance recorded as equity.
 4. **SMS parsers and the transaction entry flows** in the web panel (§5.2, §5.3).
 5. **Forecast and dashboard:** monthly report, free-to-lend, and the shortfall, surplus, and overdue alerts,
    plus the deferral tool.
@@ -284,9 +293,11 @@ which one has the most convenient bulk-transfer upload.
 
 ## 9. Still open
 
-- [ ] The current records to import: what are they kept in (spreadsheet or notes), and how many active loans and lenders are there?
-- [ ] Which bank is used for payouts, plus a sample (blank) bulk-transfer template from its internet banking.
-- [ ] Confirm the month-offset example in §3 (disbursed 1405/07/10, first installment 1405/08/30).
-- [ ] A Bale bot token and Safir access (a new bot, or reuse the existing Safir account?).
-- [ ] Hosting: ArvanCloud as before?
+- [x] Records to import: **none**. Last year's accounts are closed; the fund starts fresh.
+- [ ] Which bank is used for payouts, plus a sample (blank) bulk-transfer template. *Until then the export
+      writes a generic placeholder CSV (`core/bulk_transfer.py`) that will be swapped for the bank's format.*
+- [x] Month-offset example in §3 confirmed (disbursed 1405/07/10 → first installment 1405/08/30).
+- [ ] A Bale bot token and Safir access: the owner will provide them later; the bot is built against the
+      API docs and tested with a fake client until then.
+- [ ] Hosting: probably ArvanCloud, not final.
 - [ ] Bale wallet questions from §7-B, sent to Bale support.
