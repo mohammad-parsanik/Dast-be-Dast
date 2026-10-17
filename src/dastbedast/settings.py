@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_static",
     "simple_history",
     "dastbedast.fund",
+    "dastbedast.bot",
 ]
 
 MIDDLEWARE = [
@@ -109,6 +110,9 @@ FUND_SAFETY_MARGIN = int(os.environ.get("FUND_SAFETY_MARGIN_RIALS", "0"))
 FUND_FORECAST_HORIZON = int(os.environ.get("FUND_FORECAST_HORIZON_MONTHS", "12"))
 # Bulk-transfer file format until the payout bank's template is known (core/bulk_transfer.py).
 FUND_BULK_TRANSFER_FORMAT = os.environ.get("FUND_BULK_TRANSFER_FORMAT", "placeholder_csv")
+
+# Bale bot (PLAN §6). Admins are linked to back-office users in the admin panel (bot.BotAdmin).
+BALE_BOT_TOKEN = os.environ.get("BALE_BOT_TOKEN", "")
 
 LOGGING = {
     "version": 1,

@@ -1,5 +1,5 @@
 # Production-like stack. Copy .env.example to .env and fill it in first.
-# The Bale bot and the reminder scheduler will be added as services in later phases (PLAN §8).
+# The reminder scheduler will be added as a service in a later phase (PLAN §8).
 services:
   db:
     image: postgres:16
@@ -22,6 +22,16 @@ services:
              gunicorn dastbedast.wsgi --bind 0.0.0.0:8000 --workers 2"
     ports:
       - "127.0.0.1:8000:8000"
+
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      - app
+    command: python manage.py run_bot
 
 volumes:
   pgdata:

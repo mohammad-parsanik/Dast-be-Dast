@@ -234,7 +234,11 @@ For each Jalali month, from the current month through the next 12:
   - It runs as a Django management command (`manage.py run_bot`).
   - It uses `request_contact` for phone verification, inline keyboards for menus, and callback data of 64
     bytes or less.
-  - Admin chats are whitelisted by Bale user id.
+  - Admin chats are whitelisted by Bale user id: each bot admin is linked to a back-office user
+    (`bot.BotAdmin`, superuser-managed), so every bot action is attributed and permission-checked like
+    the web panel. `/whoami` shows a user their Bale id.
+  - Applicants are told about every status change, whichever path made it: `LoanRequest.notified_status`
+    records the last status sent, and the bot loop sends the difference.
 - **Safir** (the Bale bulk-messaging API, as used in `Bale-Message-Sender`) sends reminders by phone number
   to people who never started the bot.
 - **Scheduler:** a management command run by cron (or a small loop container) for reminders, alerts, and the daily digest.
@@ -288,8 +292,8 @@ Status: ✅ done · 🟡 partly done · ⬜ not started
 4. 🟡 **SMS parsers and the transaction entry flows** in the web panel (§5.2, §5.3).
 5. 🟡 **Forecast and dashboard:** monthly report, free-to-lend, and the shortfall, surplus, and overdue alerts,
    plus the deferral tool.
-6. ⬜ **Bale bot:** borrower application, status updates, and admin flows (the three buttons, approval
-   actions, daily digest).
+6. ✅ **Bale bot:** borrower application, status updates, and admin flows (the three buttons, approval
+   actions, daily digest). `manage.py send_digest` sends the digest; scheduling it is part of phase 7.
 7. ⬜ **Reminders:** bot plus Safir, templates, logging.
 8. 🟡 **Bulk-transfer export** in the payout bank's format (Stage A).
 9. ⬜ **Bale wallet invoices** (Stage B), once §7 is verified.
@@ -304,7 +308,7 @@ payout bank's real file format (8; a placeholder CSV is exported until then).
 - [ ] Which bank is used for payouts, plus a sample (blank) bulk-transfer template. *Until then the export
       writes a generic placeholder CSV (`core/bulk_transfer.py`) that will be swapped for the bank's format.*
 - [x] Month-offset example in §3 confirmed (disbursed 1405/07/10 → first installment 1405/08/30).
-- [ ] A Bale bot token and Safir access: the owner will provide them later; the bot is built against the
-      API docs and tested with a fake client until then.
+- [x] Bale bot token: received (@dastbedastbot), kept in `.env` only.
+- [ ] Safir access, for Phase 7.
 - [ ] Hosting: probably ArvanCloud, not final.
 - [ ] Bale wallet questions from §7-B, sent to Bale support.

@@ -186,6 +186,21 @@ def approve_referrer(request: LoanRequest, user: UserLike | None) -> None:
         request.save(update_fields=["status"])
 
 
+def mark_contacting(request: LoanRequest) -> None:
+    if request.status == LoanRequest.Status.NEW:
+        request.status = LoanRequest.Status.CONTACTING
+        request.save(update_fields=["status"])
+
+
+@db_transaction.atomic
+def reject_request(request: LoanRequest) -> None:
+    request = LoanRequest.objects.select_for_update().get(pk=request.pk)
+    if request.status in (LoanRequest.Status.APPROVED, LoanRequest.Status.DISBURSED, LoanRequest.Status.WITHDRAWN):
+        raise ServiceError("این درخواست قابل رد نیست.")
+    request.status = LoanRequest.Status.REJECTED
+    request.save(update_fields=["status"])
+
+
 @db_transaction.atomic
 def approve_loan(request: LoanRequest, amount: int | None, user: UserLike | None) -> Agreement:
     request = LoanRequest.objects.select_for_update().select_related("person").get(pk=request.pk)

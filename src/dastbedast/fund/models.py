@@ -417,6 +417,8 @@ class LoanRequest(models.Model):
         Agreement, null=True, blank=True, on_delete=models.PROTECT, related_name="loan_request", editable=False
     )
     notes = models.TextField("یادداشت", blank=True)
+    # The last status the applicant was told about in the bot; the bot sends a message when it differs.
+    notified_status = models.CharField(max_length=20, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     history = HistoricalRecords()
 
